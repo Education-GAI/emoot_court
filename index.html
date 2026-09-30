@@ -5586,6 +5586,13 @@
         petitioner</button>
       <button class="sheet-btn judge-sheet" onclick="closeMobileMore();judgeToggleCounsel('respondent')">Mute / unmute
         respondent</button>
+      <div class="mobile-sheet-divider" aria-hidden="true"></div>
+      <p class="mobile-sheet-label">Switch portal</p>
+      <div class="mobile-portal-grid">
+        <button class="sheet-btn" onclick="closeMobileMore();navigatePage('admin')">Admin</button>
+        <button class="sheet-btn" onclick="closeMobileMore();navigatePage('judge')">Judge</button>
+        <button class="sheet-btn" onclick="closeMobileMore();navigatePage('student')">Student</button>
+      </div>
       <button class="sheet-btn danger" onclick="closeMobileMore();leaveCourt()">Leave courtroom</button>
     </div>
   </div>
@@ -5672,16 +5679,21 @@
 
     function fillScheduleDefaults() {
       const d = new Date(Date.now() + 2 * 60 * 1000);
-      document.getElementById('fDate').value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      document.getElementById('fTime').value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const dateInput = document.getElementById('fDate');
+      const timeInput = document.getElementById('fTime');
+      if (dateInput) dateInput.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      if (timeInput) timeInput.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
       renderScheduleBooklet();
     }
     fillScheduleDefaults();
-    document.querySelector('.book-drop').addEventListener('dragover', e => e.preventDefault());
-    document.querySelector('.book-drop').addEventListener('drop', e => {
-      e.preventDefault();
-      addScheduleFiles({ files: e.dataTransfer.files, value: '' });
-    });
+    const scheduleBookDrop = document.querySelector('.book-drop');
+    if (scheduleBookDrop) {
+      scheduleBookDrop.addEventListener('dragover', e => e.preventDefault());
+      scheduleBookDrop.addEventListener('drop', e => {
+        e.preventDefault();
+        addScheduleFiles({ files: e.dataTransfer.files, value: '' });
+      });
+    }
 
     function addScheduleFiles(input) {
       [...(input.files || [])].forEach(f => {
@@ -5698,6 +5710,7 @@
     }
     function renderScheduleBooklet() {
       const el = document.getElementById('schedBookletList');
+      if (!el) return;
       if (!pendingBooklet.length) { el.innerHTML = '<p class="lede">No documents yet.</p>'; return; }
       el.innerHTML = pendingBooklet.map(d => `<div class="mini-doc"><span>${esc(d.name)}</span><small>${esc(d.by)}</small></div>`).join('');
     }
@@ -5878,17 +5891,23 @@
       const map = { judge: 'Judge', petitioner: 'Pet', respondent: 'Resp' };
       const key = map[role];
       const st = document.getElementById('lobby' + key + 'Status');
+      if (!st) return;
       st.textContent = isIn ? 'Joined' : 'Waiting';
       st.className = 'status-pill ' + (isIn ? 'in' : 'wait');
     }
     function renderLobbyPeople() {
       if (!session) return;
-      document.getElementById('lobbyJudgeName').textContent = session.judge;
-      document.getElementById('lobbyPetName').textContent = session.petName;
-      document.getElementById('lobbyRespName').textContent = session.respName;
-      document.getElementById('lobbyJudgeAva').textContent = initials(session.judge);
-      document.getElementById('lobbyPetAva').textContent = initials(session.petName);
-      document.getElementById('lobbyRespAva').textContent = initials(session.respName);
+      [
+        ['lobbyJudgeName', session.judge],
+        ['lobbyPetName', session.petName],
+        ['lobbyRespName', session.respName],
+        ['lobbyJudgeAva', initials(session.judge)],
+        ['lobbyPetAva', initials(session.petName)],
+        ['lobbyRespAva', initials(session.respName)]
+      ].forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+      });
       setSeat('judge', joined.judge);
       setSeat('petitioner', joined.petitioner);
       setSeat('respondent', joined.respondent);
@@ -5905,12 +5924,14 @@
           : 'Parties join at the scheduled time. The Bench may mute or unmute either counsel after the hearing opens.';
       }
       const btn = document.getElementById('lobbyPrimaryBtn');
-      if (isAudience()) {
-        btn.textContent = all ? 'Enter gallery' : 'Waiting for the hearing to open…';
-      } else {
-        btn.textContent = all ? 'Enter courtroom' : 'Waiting for all parties…';
+      if (btn) {
+        if (isAudience()) {
+          btn.textContent = all ? 'Enter gallery' : 'Waiting for the hearing to open…';
+        } else {
+          btn.textContent = all ? 'Enter courtroom' : 'Waiting for all parties…';
+        }
+        btn.disabled = !all;
       }
-      btn.disabled = !all;
     }
     function enterLobby(role) {
       if (!session) { toast('Schedule a courtroom first.'); return; }
@@ -5989,7 +6010,7 @@
         return;
       }
       document.getElementById('preCourt').style.display = 'none';
-      stopLobbyHardware();
+      if (typeof stopLobbyHardware === 'function') stopLobbyHardware();
       document.getElementById('screenCourt').style.display = 'grid';
       setMobileStage('video');
       document.body.classList.remove('flow-mode');
@@ -6294,7 +6315,7 @@
       const supplied = session && session.courtRoster && Array.isArray(session.courtRoster[dataKey])
         ? session.courtRoster[dataKey].map(person => typeof person === 'string' ? person : person && person.name).filter(Boolean)
         : [];
-      const adminJudgeRoster = role === 'judge' && Array.isArray(adminUsers)
+      const adminJudgeRoster = role === 'judge' && typeof adminUsers !== 'undefined' && Array.isArray(adminUsers)
         ? adminUsers.filter(person => person.role === 'Judge').map(person => person.name)
         : [];
       const pool = [currentName, ...supplied, ...adminJudgeRoster, ...courtRosterSamples[dataKey]];
@@ -7063,9 +7084,9 @@
         if (aiInputFooter) aiInputFooter.style.display = 'none';
         renderAdvocateEvidenceList();
       }
-      if (window.matchMedia('(max-width: 860px)').matches && document.body.classList.contains('court-mode')) {
-        setMobileStage('work');
-      }
+      // On phones, changing a workspace tab must not unexpectedly cover the
+      // courtroom. The user controls that transition with the Courtroom /
+      // Workspace tabs in the mobile header.
     }
 
     const sampleChatSessions = [
@@ -7776,7 +7797,25 @@
     const joinCode = (new URLSearchParams(location.search).get('join') || '').trim().toUpperCase();
     if (demo === 'wait' || demo === 'lobby' || demo === 'court' || demo === 'audience') {
       addSampleBooklet();
-      scheduleHearing();
+      if (document.getElementById('fTitle')) scheduleHearing();
+      // Keep preview routes usable even when the scheduling form has no date/time.
+      if (!session) {
+        session = {
+          id: 'MC-2026-014',
+          title: 'ABC v. Union of India',
+          matter: 'Constitutional Law',
+          round: 'Quarter Final',
+          judge: 'Justice A. Mehta',
+          petName: 'Adv. Priya Sharma',
+          petEmail: 'priya@example.edu',
+          respName: 'Adv. Rahul Patel',
+          respEmail: 'rahul@example.edu',
+          durationMin: 45,
+          startsAt: new Date(),
+          booklet: pendingBooklet.map(x => ({ ...x }))
+        };
+        fillShareFields();
+      }
       if (demo === 'lobby') skipToLobby();
       if (demo === 'court' || demo === 'audience') {
         joined = { judge: true, petitioner: true, respondent: true };
@@ -11116,9 +11155,9 @@
       }
       .court-bench-roster > #judgeVideo { grid-column: 1 / -1; }
       .court-team-roster { grid-template-rows: auto auto !important; align-content: start; }
-      .court-meeting-layout #judgeVideo,
-      .court-meeting-layout #petVideo,
-      .court-meeting-layout #respVideo {
+      .court-meeting-layout .court-bench-roster > #judgeVideo,
+      .court-meeting-layout .court-team-roster > #petVideo,
+      .court-meeting-layout .court-team-roster > #respVideo {
         aspect-ratio: 16 / 9;
         width: 100% !important;
         height: auto !important;
@@ -11167,9 +11206,9 @@
         grid-template-rows: minmax(0, 1fr) auto !important;
         place-items: center;
       }
-      .court-meeting-layout #judgeVideo,
-      .court-meeting-layout #petVideo,
-      .court-meeting-layout #respVideo {
+      .court-meeting-layout .court-bench-roster > #judgeVideo,
+      .court-meeting-layout .court-team-roster > #petVideo,
+      .court-meeting-layout .court-team-roster > #respVideo {
         grid-column: 1 / -1;
         width: auto !important;
         height: auto !important;
@@ -11181,6 +11220,1056 @@
       }
       .court-member-dock { max-height: 36px; }
       .court-roster-actions button span { display: none; }
+    }
+  </style>
+  <style id="responsive-ux-v2">
+    /*
+      Responsive UX layer
+      Keeps every screen usable from a 320px phone to wide desktop displays.
+    */
+    :root {
+      --touch-size: 44px;
+      --mobile-gap: clamp(10px, 3vw, 16px);
+      --mobile-pad: clamp(12px, 4vw, 20px);
+    }
+
+    html {
+      width: 100%;
+      min-width: 320px;
+      overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    body {
+      width: 100%;
+      min-width: 320px;
+      overflow-x: hidden;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      max-width: 100%;
+    }
+
+    .admin-main > *,
+    .admin-header > *,
+    .admin-header-left > *,
+    .student-header > *,
+    .student-workspace > *,
+    .student-bottom-row > *,
+    .judge-header > *,
+    .judge-workspace > *,
+    .lobby-header > *,
+    .lobby-workspace > *,
+    .court-team-zones > *,
+    .court-team-roster > *,
+    .court-bench-roster > * {
+      min-width: 0;
+    }
+
+    .admin-card,
+    .student-card,
+    #judgeDashboard .judge-card,
+    .lobby-card,
+    .court-bench-zone,
+    .court-team-zone {
+      max-width: 100%;
+    }
+
+    .admin-card,
+    .student-card,
+    #judgeDashboard .judge-card,
+    .lobby-card,
+    .live-room-row,
+    .student-helpdesk,
+    .judge-noticeboard {
+      overflow-wrap: anywhere;
+    }
+
+    .mobile-sheet-divider {
+      height: 1px;
+      margin: 10px 0 14px;
+      background: var(--border);
+    }
+
+    .mobile-sheet-label {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .mobile-portal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .mobile-portal-grid .sheet-btn {
+      margin: 0;
+      padding-inline: 8px;
+      text-align: center;
+    }
+
+    /* Keep camera framing natural instead of cropping to a narrow vertical slice. */
+    .court-meeting-layout .live-cam {
+      object-fit: cover;
+      object-position: center 28%;
+    }
+
+    @media (max-width: 1200px) {
+      .student-workspace {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+      }
+
+      .student-workspace > :nth-child(3) {
+        grid-column: 1 / -1;
+      }
+
+      .judge-workspace {
+        gap: 24px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      button,
+      [role="button"],
+      select {
+        min-height: var(--touch-size);
+      }
+
+      #pageSwitchButton {
+        min-height: 40px;
+      }
+
+      .admin-main {
+        overflow: hidden;
+      }
+
+      .admin-content {
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+
+      .admin-sidebar {
+        border-bottom: 1px solid rgba(255, 255, 255, .1);
+      }
+
+      .admin-nav-list {
+        scroll-snap-type: x proximity;
+      }
+
+      .admin-nav-item {
+        min-height: 46px;
+        scroll-snap-align: start;
+      }
+
+      .student-workspace {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .student-workspace > :nth-child(3) {
+        grid-column: auto;
+      }
+
+      .student-bottom-row,
+      .student-history-row {
+        grid-column: auto;
+      }
+
+      .judge-main-col,
+      .judge-side-col {
+        width: 100%;
+      }
+
+      .judge-side-col {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+      }
+
+      .lobby-workspace {
+        max-width: 760px;
+      }
+
+      .lobby-video-canvas {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+      }
+
+      .admin-table {
+        min-width: 680px;
+      }
+
+      .admin-card:has(> .admin-table),
+      .admin-card:has(.submission-table-wrap) {
+        padding-bottom: 12px;
+      }
+    }
+
+    @media (max-width: 860px) {
+      /*
+        Courtroom shell: fixed chrome, independently scrolling stage,
+        and a touch-sized control bar.
+      */
+      body.court-mode {
+        overscroll-behavior: none;
+      }
+
+      body.court-mode #roleSelectorWidget {
+        display: none !important;
+      }
+
+      body.court-mode .app {
+        grid-template-rows:
+          calc(52px + env(safe-area-inset-top))
+          46px
+          minmax(0, 1fr)
+          calc(64px + env(safe-area-inset-bottom)) !important;
+      }
+
+      body.court-mode .topbar {
+        height: calc(52px + env(safe-area-inset-top));
+        min-height: calc(52px + env(safe-area-inset-top));
+        padding:
+          env(safe-area-inset-top)
+          max(10px, env(safe-area-inset-right))
+          0
+          max(10px, env(safe-area-inset-left));
+      }
+
+      body.court-mode .brand {
+        min-width: 0;
+        font-size: 17px;
+      }
+
+      body.court-mode .brand-word {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      body.court-mode .top-right {
+        min-width: 0;
+        gap: 6px;
+      }
+
+      body.court-mode .top-btn,
+      body.court-mode .avatar {
+        flex: 0 0 auto;
+      }
+
+      body.court-mode .timer {
+        min-width: 64px;
+        min-height: 36px;
+      }
+
+      body.court-mode .mobile-stage-tabs {
+        min-width: 0;
+        padding: 5px 8px;
+        gap: 8px;
+        background: #090d15;
+        border-bottom: 1px solid var(--border);
+      }
+
+      body.court-mode .mobile-stage-tabs .mode-btn {
+        min-width: 0;
+        min-height: 36px;
+        padding: 7px 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      body.court-mode .stage {
+        min-height: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      body.court-mode .meeting.court-meeting-layout {
+        width: 100%;
+        height: 100%;
+        padding: 8px;
+        gap: 10px;
+        border: 0;
+        border-radius: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scroll-padding-top: 42px;
+      }
+
+      .court-layout-heading {
+        position: sticky;
+        top: 0;
+        z-index: 12;
+        min-height: 38px;
+        padding: 5px 4px 8px;
+        background: linear-gradient(180deg, #0b1019 75%, rgba(11, 16, 25, 0));
+      }
+
+      .court-layout-heading > div:first-child {
+        min-width: 0;
+        flex-wrap: nowrap;
+      }
+
+      .court-live-kicker,
+      .court-layout-heading > div:first-child > b,
+      .court-observer-count {
+        white-space: nowrap;
+      }
+
+      .court-layout-heading > div:first-child > b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .court-bench-zone,
+      .court-team-zone {
+        width: 100%;
+        min-height: 0 !important;
+        padding: 8px;
+        gap: 8px;
+        border-radius: 14px;
+      }
+
+      .court-zone-heading {
+        min-width: 0;
+        min-height: 34px;
+      }
+
+      .court-zone-heading > div {
+        overflow: hidden;
+      }
+
+      .court-zone-heading b,
+      .court-zone-heading small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .court-zone-rule {
+        min-width: 8px;
+      }
+
+      .court-roster-actions button {
+        min-width: 34px;
+        height: 34px;
+        min-height: 34px;
+      }
+
+      .court-bench-roster,
+      .court-team-roster {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: auto auto !important;
+        align-content: start;
+        gap: 8px;
+        min-height: 0;
+      }
+
+      .court-team-zones {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        min-height: 0;
+      }
+
+      .court-bench-roster {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+
+      .court-bench-roster > #judgeVideo {
+        grid-column: 1 / -1 !important;
+      }
+
+      .court-meeting-layout .court-bench-roster > #judgeVideo,
+      .court-meeting-layout .court-team-roster > #petVideo,
+      .court-meeting-layout .court-team-roster > #respVideo {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border-radius: 12px;
+      }
+
+      .court-meeting-layout #judgeVideo .video-main-bg,
+      .court-meeting-layout #petVideo .thumb-bg,
+      .court-meeting-layout #respVideo .thumb-bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .court-member-dock {
+        width: 100%;
+        min-height: 48px;
+        padding-bottom: 2px;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+      }
+
+      .court-member-chip {
+        min-height: 46px;
+        scroll-snap-align: start;
+      }
+
+      .court-meeting-layout .video-label {
+        width: auto;
+        height: auto;
+        max-width: calc(100% - 16px);
+        padding: 6px 8px;
+        border: 1px solid rgba(255, 255, 255, .12);
+        border-radius: 10px;
+        background: rgba(8, 11, 18, .86);
+        backdrop-filter: blur(10px);
+      }
+
+      .court-meeting-layout .video-label .id-text {
+        opacity: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .court-meeting-layout .video-label b,
+      .court-meeting-layout .video-label span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      body.court-mode .toast {
+        top: auto;
+        bottom: calc(72px + env(safe-area-inset-bottom));
+      }
+
+      body.court-mode .bottom {
+        position: relative;
+        z-index: 20;
+        min-height: calc(64px + env(safe-area-inset-bottom));
+        padding:
+          7px
+          max(8px, env(safe-area-inset-right))
+          calc(7px + env(safe-area-inset-bottom))
+          max(8px, env(safe-area-inset-left));
+        background: rgba(9, 13, 22, .98);
+        box-shadow: 0 -10px 26px rgba(0, 0, 0, .28);
+      }
+
+      body.court-mode .bottom-center {
+        width: 100%;
+        padding: 0;
+        gap: 8px;
+        flex-wrap: nowrap;
+      }
+
+      body.court-mode .control {
+        flex: 1 1 0;
+        min-width: 0;
+        height: 46px;
+        padding: 0 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      body.court-mode .control.danger {
+        flex: 0 0 auto;
+        min-width: 70px;
+      }
+
+      .sidebar {
+        max-width: 100%;
+      }
+
+      .action-mode-bar {
+        scroll-snap-type: x proximity;
+      }
+
+      .action-mode-bar .mode-btn {
+        min-height: 42px;
+        scroll-snap-align: start;
+      }
+
+      .chat-stream,
+      .view {
+        overscroll-behavior: contain;
+      }
+
+      .mobile-sheet {
+        max-height: min(78dvh, 680px);
+        overflow-y: auto;
+      }
+    }
+
+    @media (max-width: 720px) {
+      #roleSelectorWidget {
+        top: 8px !important;
+        right: 8px !important;
+      }
+
+      #pageSwitchButton {
+        min-width: 104px;
+        padding: 8px 10px;
+        text-align: center;
+      }
+
+      .admin-header,
+      .student-header,
+      .judge-header,
+      .lobby-header {
+        min-height: 72px;
+        padding:
+          12px
+          calc(122px + env(safe-area-inset-right))
+          12px
+          max(14px, env(safe-area-inset-left));
+        align-items: flex-start;
+      }
+
+      .admin-header-left {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+      }
+
+      .admin-logo,
+      .student-logo,
+      .judge-logo,
+      .lobby-header > div:first-child {
+        width: 100%;
+        min-width: 0;
+        font-size: clamp(15px, 4.4vw, 18px) !important;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+      }
+
+      .admin-event-info {
+        align-items: flex-start !important;
+      }
+
+      .admin-event-info > div:first-child {
+        font-size: 13px !important;
+      }
+
+      .student-header {
+        flex-direction: column;
+      }
+
+      .student-header > div:last-child {
+        width: 100%;
+      }
+
+      .student-header > div:last-child span {
+        display: inline-flex;
+        max-width: 100%;
+        margin-right: 0 !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .lobby-header {
+        flex-direction: column;
+      }
+
+      .lobby-header > div:last-child {
+        max-width: 100%;
+        flex-wrap: wrap;
+        gap: 8px !important;
+      }
+
+      .lobby-workspace,
+      .student-workspace,
+      .judge-workspace {
+        width: 100%;
+        padding: 14px 12px 28px;
+      }
+
+      .lobby-card,
+      .student-card,
+      #judgeDashboard .judge-card,
+      .student-helpdesk,
+      .judge-noticeboard {
+        padding: 16px;
+        border-radius: 14px;
+      }
+
+      .lobby-card h3 {
+        font-size: 14px !important;
+        line-height: 1.35;
+      }
+
+      .lobby-card h3:has(.lobby-badge) {
+        align-items: flex-start !important;
+        flex-wrap: wrap;
+      }
+
+      .lobby-roster-item {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+      }
+
+      .lobby-status-bar {
+        padding: 14px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .judge-side-col {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .judge-tabs {
+        margin-bottom: 14px;
+        padding-bottom: 2px;
+        scroll-snap-type: x mandatory;
+      }
+
+      .judge-tab {
+        min-height: 44px;
+        padding: 12px 4px;
+        scroll-snap-align: start;
+      }
+
+      .judge-table-row {
+        position: relative;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+        padding: 16px !important;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px !important;
+        margin: 10px !important;
+      }
+
+      .judge-table-row > div {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .judge-table-header {
+        display: none;
+      }
+
+      .student-memorial-card-head,
+      .student-upload-topline,
+      .student-memorial-countdown-row {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .student-window-badge,
+      .student-file-status {
+        white-space: normal;
+      }
+
+      .student-upload-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .student-upload-actions button,
+      .student-btn-primary,
+      .student-btn-secondary {
+        max-width: 100%;
+      }
+
+      .matching-config-card,
+      .matching-panel {
+        padding: 16px;
+      }
+
+      .matching-roster-slots {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .admin-content {
+        padding: 14px 10px 28px;
+      }
+
+      .admin-section-title {
+        margin-bottom: 16px;
+        font-size: 20px;
+      }
+
+      .admin-card {
+        padding: 14px;
+        border-radius: 10px;
+      }
+
+      .admin-card:has(> .admin-table) {
+        padding-inline: 0;
+      }
+
+      .admin-card:has(> .admin-table) > .dir-toolbar,
+      .admin-card:has(> .admin-table) > button {
+        margin-inline: 14px;
+      }
+
+      .submission-control-grid,
+      .matching-count-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+
+      .submission-control-actions,
+      .submission-control-buttons,
+      .submission-ledger-toolbar {
+        align-items: stretch;
+      }
+
+      .submission-control-buttons button,
+      .submission-ledger-toolbar input {
+        width: 100%;
+      }
+
+      .admin-modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+      }
+
+      .admin-modal {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh;
+        margin: 0;
+        padding: 18px;
+        border-radius: 18px 18px 0 0;
+        overflow-y: auto;
+      }
+
+      .admin-modal-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+
+      .admin-modal-actions button {
+        width: 100%;
+      }
+
+      .memorial-split {
+        min-height: 520px;
+      }
+
+      .stack-grid-3 {
+        margin-bottom: 18px;
+      }
+
+      .dir-toolbar,
+      .dir-toolbar > div {
+        width: 100%;
+      }
+
+      .dir-toolbar input,
+      .dir-toolbar select,
+      .dir-toolbar button {
+        min-height: 44px;
+      }
+
+      .live-room-row > div:last-child {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        width: 100%;
+      }
+
+      .live-room-row > div:last-child button {
+        width: 100%;
+      }
+
+      .flow-view {
+        padding: 18px 12px 30px;
+      }
+
+      .flow-view h1 {
+        font-size: clamp(27px, 9vw, 38px);
+      }
+
+      .flow-top {
+        position: relative;
+      }
+
+      .stepper {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+    }
+
+    @media (max-width: 480px) {
+      :root {
+        --touch-size: 46px;
+      }
+
+      .admin-header,
+      .student-header,
+      .judge-header,
+      .lobby-header {
+        padding-right: 120px;
+      }
+
+      .lobby-workspace,
+      .student-workspace,
+      .judge-workspace {
+        gap: 14px;
+        padding-inline: 10px;
+      }
+
+      .lobby-card,
+      .student-card,
+      #judgeDashboard .judge-card {
+        margin-bottom: 14px;
+        padding: 14px;
+      }
+
+      .lobby-video-canvas {
+        margin-bottom: 14px;
+      }
+
+      .lobby-toggle-btn {
+        min-width: 0;
+        padding: 10px 8px;
+        font-size: 12px;
+      }
+
+      .student-card h3,
+      #judgeDashboard .judge-card h3 {
+        font-size: clamp(18px, 6vw, 24px) !important;
+      }
+
+      .mobile-portal-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      body.court-mode .brand {
+        max-width: 132px;
+      }
+
+      body.court-mode .top-btn.mobile-only {
+        width: 38px;
+        padding-inline: 6px;
+      }
+
+      body.court-mode .avatar {
+        width: 32px;
+        height: 32px;
+      }
+
+      .court-zone-heading small {
+        display: none;
+      }
+
+      .court-team-zone {
+        padding: 6px;
+      }
+
+      .court-team-zone .court-zone-heading {
+        gap: 5px;
+      }
+
+      .court-team-zone .court-zone-rule {
+        display: none;
+      }
+
+      .court-team-zone .court-roster-actions button:first-child {
+        display: none;
+      }
+
+      .court-team-zone .court-roster-actions button:last-child {
+        min-width: 32px;
+        width: 32px;
+      }
+
+      .court-team-zone .court-member-dock {
+        min-height: 42px;
+      }
+
+      .court-team-roster .court-member-chip {
+        width: 68px;
+        max-width: 68px;
+        min-height: 42px;
+      }
+
+      .court-team-roster .court-member-chip:nth-child(n + 3) {
+        display: none;
+      }
+
+      .court-meeting-layout .video-label {
+        left: 5px;
+        bottom: 5px;
+        max-width: calc(100% - 10px);
+        padding: 4px 6px;
+        gap: 5px;
+      }
+
+      .court-meeting-layout .video-label b {
+        font-size: 8px;
+      }
+
+      .court-meeting-layout .video-label span {
+        font-size: 7px;
+      }
+
+      .court-roster-actions button:last-child {
+        padding-inline: 7px;
+      }
+
+      .court-roster-actions button span {
+        display: none;
+      }
+
+      body.court-mode .control {
+        font-size: 11px;
+      }
+
+      body.court-mode .control.danger {
+        min-width: 62px;
+      }
+    }
+
+    /* Compact Meet-style gallery when a phone is rotated sideways. */
+    @media (orientation: landscape) and (max-height: 540px) and (max-width: 960px) {
+      body.court-mode .app {
+        grid-template-rows:
+          calc(42px + env(safe-area-inset-top))
+          34px
+          minmax(0, 1fr)
+          calc(52px + env(safe-area-inset-bottom)) !important;
+      }
+
+      body.court-mode .topbar {
+        height: calc(42px + env(safe-area-inset-top));
+        min-height: calc(42px + env(safe-area-inset-top));
+      }
+
+      body.court-mode .mobile-stage-tabs {
+        padding-block: 2px;
+      }
+
+      body.court-mode .mobile-stage-tabs .mode-btn {
+        min-height: 28px;
+        padding-block: 3px;
+      }
+
+      body.court-mode .meeting.court-meeting-layout {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: 30px minmax(0, 1fr);
+        gap: 6px;
+        padding: 5px;
+        overflow: hidden;
+      }
+
+      .court-layout-heading {
+        grid-column: 1 / -1;
+        position: static;
+        min-height: 30px;
+        padding: 2px 4px;
+      }
+
+      .court-active-speaker,
+      .court-zone-heading small,
+      .court-observer-count {
+        display: none;
+      }
+
+      .court-team-zones {
+        display: contents;
+      }
+
+      .court-bench-zone,
+      .court-team-zone {
+        height: 100%;
+        min-height: 0 !important;
+        padding: 5px;
+        gap: 4px;
+        overflow: hidden;
+      }
+
+      .court-zone-heading {
+        min-height: 26px;
+      }
+
+      .court-zone-mark {
+        width: 20px;
+        height: 20px;
+      }
+
+      .court-roster-actions button {
+        min-width: 27px;
+        width: 27px;
+        height: 27px;
+        min-height: 27px;
+        padding: 0;
+      }
+
+      .court-roster-actions button:last-child {
+        display: none;
+      }
+
+      .court-bench-roster,
+      .court-team-roster {
+        display: flex !important;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+
+      .court-meeting-layout .court-bench-roster > #judgeVideo,
+      .court-meeting-layout .court-team-roster > #petVideo,
+      .court-meeting-layout .court-team-roster > #respVideo {
+        flex: 0 1 auto;
+        width: 100% !important;
+        height: auto !important;
+        max-width: 100%;
+        max-height: none !important;
+        aspect-ratio: 16 / 9;
+        align-self: center;
+      }
+
+      .court-member-dock {
+        display: none;
+      }
+
+      .court-bench-roster > .court-member-chip {
+        display: none;
+      }
+
+      .court-meeting-layout .video-label {
+        left: 6px;
+        bottom: 6px;
+        max-width: calc(100% - 12px);
+      }
+
+      body.court-mode .bottom {
+        min-height: calc(52px + env(safe-area-inset-bottom));
+        padding-block: 4px calc(4px + env(safe-area-inset-bottom));
+      }
+
+      body.court-mode .control {
+        height: 40px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
     }
   </style>
 </body>
