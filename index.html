@@ -6202,7 +6202,12 @@
       b.disabled = true;
       try {
         localStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: {
+            facingMode: { ideal: 'user' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            aspectRatio: { ideal: 16 / 9 }
+          },
           audio: true
         });
         camOn = true;
@@ -9581,7 +9586,15 @@
 
     async function initLobbyHardware() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'user' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            aspectRatio: { ideal: 16 / 9 }
+          },
+          audio: true
+        });
         lobbyLocalStream = stream;
 
         const videoEl = document.getElementById('lobbyLocalVideo');
@@ -12399,28 +12412,33 @@
       }
     }
 
-    /* Phone portrait: equal 2-up tiles, with the third tile centered below. */
+    /* Phone portrait: one full-width horizontal tile per courtroom group. */
     @media (max-width: 600px) and (orientation: portrait) {
       .meeting.court-meeting-layout {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-template-rows: auto auto auto;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto;
+        grid-auto-rows: max-content;
         align-content: start;
         gap: 8px;
         padding: 8px;
         overflow-x: hidden;
         overflow-y: auto;
+        scroll-snap-type: y proximity;
       }
 
       .meeting.court-meeting-layout .respondent-zone {
-        grid-column: 1 / -1;
-        width: calc((100% - 8px) / 2);
-        justify-self: center;
+        grid-column: auto;
+        width: 100%;
+        justify-self: stretch;
       }
 
       .meeting.court-meeting-layout .court-bench-zone,
       .meeting.court-meeting-layout .court-team-zone {
+        width: 100%;
+        height: max-content;
         padding: 6px;
         gap: 6px;
+        scroll-snap-align: start;
       }
 
       .meeting.court-meeting-layout .court-zone-heading {
@@ -12462,7 +12480,9 @@
 
       .meeting.court-meeting-layout .court-bench-roster,
       .meeting.court-meeting-layout .court-team-roster {
+        height: auto;
         gap: 5px;
+        overflow: visible;
       }
 
       .meeting.court-meeting-layout .court-member-dock {
