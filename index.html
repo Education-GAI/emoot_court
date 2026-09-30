@@ -472,6 +472,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      object-position: center 30%;
       display: none;
       transform: scaleX(-1);
       background: #0b1019;
@@ -11042,9 +11043,17 @@
       #roleSelectorWidget { top: 8px !important; right: 8px !important; }
       body.court-mode #roleSelectorWidget {
         top: auto !important;
-        right: auto !important;
-        left: 8px !important;
-        bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+        left: auto !important;
+        right: 8px !important;
+        bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+        z-index: 40;
+      }
+      body.court-mode .bottom-center { padding-right: 112px; }
+      body.court-mode #pageSwitchMenu {
+        top: auto;
+        bottom: calc(100% + 7px);
+        right: 0;
+        left: auto;
       }
       #pageSwitchButton { min-width: 0; padding: 8px 10px; font-size: 11px; }
       #pageSwitchMenu { right: 0; left: auto; max-width: calc(100vw - 20px); }
@@ -11085,6 +11094,93 @@
       .top-btn.timer { min-width: 52px; }
       .student-header > div:last-child span { font-size: 12px !important; padding: 6px 10px !important; }
       .lobby-roster-item { flex-wrap: wrap; gap: 8px; }
+    }
+
+    /* Courtroom videos stay horizontal (16:9), like Meet / Zoom, on every screen. */
+    .court-meeting-layout #judgeVideo .video-main-bg,
+    .court-meeting-layout #petVideo .thumb-bg,
+    .court-meeting-layout #respVideo .thumb-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    @media (max-width: 860px) {
+      .court-bench-zone,
+      .court-team-zone { min-height: 0 !important; }
+      .court-bench-roster {
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-auto-rows: auto !important;
+        align-content: start;
+      }
+      .court-bench-roster > #judgeVideo { grid-column: 1 / -1; }
+      .court-team-roster { grid-template-rows: auto auto !important; align-content: start; }
+      .court-meeting-layout #judgeVideo,
+      .court-meeting-layout #petVideo,
+      .court-meeting-layout #respVideo {
+        aspect-ratio: 16 / 9;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none;
+      }
+      .meeting.court-meeting-layout { padding-bottom: 8px; }
+    }
+
+    /* Phone turned sideways: three face tiles in one horizontal row. */
+    @media (orientation: landscape) and (max-height: 520px) {
+      body.court-mode .app {
+        grid-template-rows: 40px auto minmax(0, 1fr) 46px !important;
+      }
+      body.court-mode .topbar { min-height: 40px; height: 40px; }
+      body.court-mode .mobile-stage-tabs { padding: 2px 6px 0; }
+      body.court-mode .mobile-stage-tabs .mode-btn { min-height: 28px; padding: 4px 8px; }
+      .meeting.court-meeting-layout {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: auto minmax(0, 1fr);
+        overflow: hidden !important;
+        gap: 8px;
+        padding: 6px;
+        height: 100%;
+      }
+      .court-layout-heading { grid-column: 1 / -1; position: static; padding-bottom: 2px; }
+      .court-active-speaker,
+      .court-zone-heading small { display: none; }
+      .court-team-zones { display: contents; }
+      .court-bench-zone,
+      .court-team-zone {
+        min-height: 0 !important;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        padding: 6px;
+        gap: 4px;
+      }
+      .court-bench-roster,
+      .court-team-roster {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 1fr) auto !important;
+        place-items: center;
+      }
+      .court-meeting-layout #judgeVideo,
+      .court-meeting-layout #petVideo,
+      .court-meeting-layout #respVideo {
+        grid-column: 1 / -1;
+        width: auto !important;
+        height: auto !important;
+        max-width: 100%;
+        max-height: 100%;
+        aspect-ratio: 16 / 9;
+        align-self: center;
+        justify-self: center;
+      }
+      .court-member-dock { max-height: 36px; }
+      .court-roster-actions button span { display: none; }
     }
   </style>
 </body>
